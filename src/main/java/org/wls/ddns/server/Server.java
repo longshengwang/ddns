@@ -85,7 +85,7 @@ public class Server {
 
             return true;
         } catch (BindException e){
-            LOG.info("[连接失败]端口(" + port+ ")已经绑定");
+            LOG.info("[Connect Error]Port(" + port+ ") is bind by other program");
         } catch (IOException e) {
             LOG.error("", e);
         }
@@ -143,7 +143,7 @@ public class Server {
                             if (keyProxyLoopMap.get(readyKey) == null) {
                                 SocketChannel clientSocketChannel = (SocketChannel) readyKey.channel();
                                 ByteBuffer contextBytes = (ByteBuffer)readyKey.attachment();
-                                LOG.debug("新请求的远程地址：" + clientSocketChannel.getRemoteAddress());
+                                LOG.debug("New Connect Address:" + clientSocketChannel.getRemoteAddress());
                                 int realLen = -1;
                                 int proxyPort = -1;
                                 if ((realLen = clientSocketChannel.read(contextBytes)) > 0) {
@@ -151,7 +151,7 @@ public class Server {
 
                                     RegisterProtocol protocol = RegisterProtocol.decode(contextBytes);
                                     if(protocol == null){
-                                        LOG.warn("协议解读失败,关闭通道");
+                                        LOG.warn("Protocol Read Error, Close the channel");
                                         ByteBuffer b = ByteBuffer.allocate(4096);
                                         b.putInt(2);
                                         b.flip();
@@ -159,17 +159,16 @@ public class Server {
                                         selectableChannel.close();
                                         continue;
                                     }
-                                    LOG.info("新过来的注册信息为:");
+                                    LOG.info("New Register Protocol Info:");
                                     LOG.info(protocol);
 //                                    proxyPort = contextBytes.getInt(0);
-//                                    LOG.info("注册的协议内容为:" + protocol);
                                     contextBytes.clear();
 
                                     // 0: ok
                                     // 1: error
                                     boolean success = this.addProxyServer(protocol, readyKey);
                                     if(!success){
-                                        LOG.warn("无法建立代理端口：" + proxyPort + "(应该是端口被占用了)");
+                                        LOG.warn("Cannot establish proxy prot:" + proxyPort + "(The port may be used)");
                                         ByteBuffer b = ByteBuffer.allocate(4096);
                                         b.putInt(1);
                                         b.flip();
@@ -183,7 +182,7 @@ public class Server {
                                         clientSocketChannel.write(b);
                                     }
                                 } else {
-                                    LOG.warn("没有数据，那么就。。。关了吧。。");
+                                    LOG.warn("No data, then ... close it...");
                                     selectableChannel.close();
                                 }
                                 continue;
@@ -225,15 +224,15 @@ public class Server {
     }
 
     private static void registerSocketChannel(SocketChannel socketChannel, Selector selector) throws Exception {
-        LOG.info("注册过来的远端地址是 : " + socketChannel.socket().getRemoteSocketAddress());
+        LOG.info("The register remote connection address : " + socketChannel.socket().getRemoteSocketAddress());
         socketChannel.configureBlocking(false);
-        //socket通道可以且只可以注册三种事件SelectionKey.OP_READ | SelectionKey.OP_WRITE | SelectionKey.OP_CONNECT
+        //socket SelectionKey.OP_READ | SelectionKey.OP_WRITE | SelectionKey.OP_CONNECT
         socketChannel.register(selector, SelectionKey.OP_READ, ByteBuffer.allocate(SocketTool.PROTOCOL_BUFFER_SIZE));
     }
 
 
     private void stopProxy(SelectionKey readyKey) throws IOException {
-        LOG.info("中间通道(middle key)被关闭了");
+        LOG.info("Middle Channle (middle key) is closed");
         LOG.info(connectionStatisticMap.get(readyKey));
         ProxyServer proxyLoop = keyProxyLoopMap.get(readyKey);
         proxyLoop.closeLoop();
@@ -253,7 +252,7 @@ public class Server {
         int realLen = -1;
         try {
             if (clientSocketChannel.socket().isClosed()) {
-                LOG.warn("[IN]访问代理de中间通道不是打开状态======《《《《");
+                LOG.warn("[IN] The proxy middle channel is not open ======《《《《");
                 this.stopProxy(readyKey);
             }
 
@@ -268,7 +267,7 @@ public class Server {
 
 
             if (realLen == -1) {
-                LOG.warn("内网连接的中间通道已经被关闭");
+                LOG.warn("The inner middle channel has be closed");
                 readyKey.channel().close();
                 this.stopProxy(readyKey);
             }
@@ -286,7 +285,7 @@ public class Server {
 
     void loopSendData(SelectionKey readyKey, ByteBuffer contextBytes) throws IOException {
         Metadata dataInfo = dataInfoMap.get(readyKey);
-        LOG.debug("[ loopSendData ]发送数据给外面的服务 contextBytes长度：" + contextBytes.remaining());
+        LOG.debug("[ loopSendData ] Send the data to out service. contextBytes length:" + contextBytes.remaining());
         if(contextBytes.remaining() < 4){
             LOG.error("=======-=-==================================-=-==================================-=-==================================-=-===========================");
         }
@@ -294,10 +293,10 @@ public class Server {
         if(dataInfo.isNull()){
 
             if(dataInfo.hasNotCompleteProtocolIndex()){
-                LOG.info("获取头部的时候发现有未完成的index, 长度: " + dataInfo.getNotCompleteProtocolSize());
+                LOG.info("Find the not complete data when get the header protocol, lengh: " + dataInfo.getNotCompleteProtocolSize());
                 Integer indexRemainLength = Integer.BYTES - dataInfo.getNotCompleteProtocolSize();
                 if(contextBytes.remaining() < indexRemainLength){
-                    LOG.error("Fuck the network when go this step *********************************");
+                    LOG.error("!@#$%^&*() Fucking the network when go this step *********************************");
                 }
                 IntStream.range(0, indexRemainLength).forEach(i->{
                     dataInfo.putByte2NotCompleteProtocol(contextBytes.get());
@@ -305,9 +304,9 @@ public class Server {
                 int protocolHeader = dataInfo.getIndexByNotCompleteList();
                 int indexId = protocolHeader >> Short.SIZE;
                 short dataSize = (short) (protocolHeader & Short.MAX_VALUE);
-                LOG.info("[ loopSendData ] 索引ID(分了两次的)：" + indexId + "    dataSize:" + dataSize);
+                LOG.info("[ loopSendData ] Index ID(Twice)：" + indexId + "    dataSize:" + dataSize);
                 if(indexId < 0){
-                    LOG.info("[ loopSendData ][关闭消息] 索引ID(分了两次的)：" + indexId + "    dataSize:" + dataSize);
+                    LOG.info("[ loopSendData ][Closed Message] Index Id(Twice)：" + indexId + "    dataSize:" + dataSize);
                     contextBytes.clear();
                     this.keyProxyLoopMap.get(readyKey).closeSocketByIndexId(-indexId);
                     return;
@@ -317,7 +316,7 @@ public class Server {
                 dataInfo.clearNotCompleteProtocolIndex();
             } else {
                 if(contextBytes.remaining() < 4){
-                    LOG.info("获取头部的时候发现缓存长度小于4个字节，长度是：" + contextBytes.remaining());
+                    LOG.info("Find the length of bytebuffer is less then 4 when get protocol header, length :" + contextBytes.remaining());
                     IntStream.range(0, contextBytes.remaining()).forEach(i->{
                         dataInfo.putByte2NotCompleteProtocol(contextBytes.get());
                     });
@@ -327,9 +326,9 @@ public class Server {
                     int protocolHeader = contextBytes.getInt();
                     int indexId = protocolHeader >> Short.SIZE;
                     short dataSize = (short) (protocolHeader & Short.MAX_VALUE);
-                    LOG.debug("[ loopSendData ] 索引ID：" + indexId + "    dataSize:" + dataSize);
+                    LOG.debug("[ loopSendData ] Index ID：" + indexId + "    dataSize:" + dataSize);
                     if(indexId < 0){
-                        LOG.info("[ loopSendData ][关闭消息] 索引ID：" + indexId + "    dataSize:" + dataSize);
+                        LOG.info("[ loopSendData ][Close Message] Index ID：" + indexId + "    dataSize:" + dataSize);
                         LOG.debug("remain:" + contextBytes.remaining());
                         contextBytes.clear();
                         this.keyProxyLoopMap.get(readyKey).closeSocketByIndexId(-indexId);
@@ -345,11 +344,9 @@ public class Server {
 
         SelectionKey proxyClientKey = this.keyProxyLoopMap.get(readyKey).getSelectionKey(dataInfo.getIndexId());
         if(proxyClientKey == null){
-            LOG.warn("通向外面的通道不见了(proxyClientKey 是空了)");
+            LOG.warn("The channel to outer is none(proxyClientKey is empty)");
             this.keyProxyLoopMap.get(readyKey).closeSocketByIndexId(dataInfo.getIndexId());
-//            byte[] remainBytes = new byte[dataInfo.getRemainingLength()];
-//            contextBytes.get(remainBytes);
-            //TODO 测试代码，这里本可以不用减，直接rest可以
+            //Test code, used to data statistic
             dataInfo.decrease(dataInfo.getRemainingLength());
             dataInfo.reset();
             contextBytes.clear();
@@ -373,7 +370,7 @@ public class Server {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    LOG.info("=================================== 需要重复发送 ======");
+                    LOG.debug("=================================== Need repeat send ======");
                     channel.write(contextBytes);
                 }
 
@@ -382,9 +379,9 @@ public class Server {
                 contextBytes.clear();
                 dataInfo.reset();
 
-                LOG.error("[警告]=== 我抓住了这个异常 (1  -  1) >>>>");
+                LOG.error("[EXP WARN]=== I catch the exception (1  -  1) >>>>");
                 LOG.error("", e);
-                LOG.error("[警告]=== 我抓住了这个异常 <<<<");
+                LOG.error("[EXP WARN]=== I catch the exception <<<<");
             }
         }
         else if(dataInfo.getRemainingLength() > contextBytes.remaining()){
@@ -401,7 +398,7 @@ public class Server {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    LOG.info("=================================== 需要重复发送 ======");
+                    LOG.debug("=================================== Need repeat send ======");
                     channel.write(contextBytes);
                 }
 
@@ -410,13 +407,13 @@ public class Server {
                 contextBytes.clear();
                 dataInfo.reset();
 
-                LOG.error("[警告]=== 我抓住了这个异常 (2  -  2) >>>>");
+                LOG.error("[EXP WARN]=== I catch the exception (2  -  2) >>>>");
                 LOG.error("", e);
             }
 
         }
         else {
-            LOG.warn("===>>>>>>>这里会进入循环:" + dataInfo.getRemainingLength() + ";" + contextBytes.remaining());
+            LOG.debug("===>>>>>>> here is go loop again:" + dataInfo.getRemainingLength() + ";" + contextBytes.remaining());
             byte[] remainBytes = new byte[dataInfo.getRemainingLength()];
             contextBytes.get(remainBytes);
 
@@ -433,15 +430,15 @@ public class Server {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    LOG.info("=================================== 需要重复发送 ======");
+                    LOG.debug("=================================== Need repeat send ======");
                     channel.write(remainBuffer);
                 }
                 dataInfo.reset();
             } catch (IOException e){
                 dataInfo.reset();
-                LOG.error("=== 我抓住了这个异常(1+2  -  1) >>>>");
+                LOG.error("=== [EXP WARN]=== I catch the exception(1+2  -  1) >>>>");
                 LOG.error("", e);
-                LOG.error("=== 我抓住了这个异常 <<<<");
+                LOG.error("=== [EXP WARN]=== I catch the exception <<<<");
             }
             loopSendData(readyKey, contextBytes);
         }
@@ -457,8 +454,8 @@ public class Server {
         if(args.length > 1){
             httpPort = Integer.parseInt(args[1]);
         }
-
-        System.out.println(port);
+        LOG.info("Service Port is: " + port);
+        LOG.info("Http Port is: " + port);
         Server layer = new Server(port, httpPort);
         layer.startServer();
     }

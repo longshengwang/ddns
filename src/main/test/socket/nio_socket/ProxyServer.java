@@ -1,28 +1,21 @@
-package org.wls.ddns.server;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.wls.ddns.SocketTool;
-import org.wls.ddns.model.ConnModel;
-import org.wls.ddns.model.RegisterProtocol;
+package org.wls.ddns.backup.socket.nio_socket;
 
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 import java.util.stream.IntStream;
 
 
 public class ProxyServer extends Thread {
-    public static Logger LOG = LogManager.getLogger(ProxyServer.class);
+    public static Logger log = Logger.getLogger(ProxyServer.class.toString());
 
 
     public Selector selector;
@@ -40,17 +33,10 @@ public class ProxyServer extends Thread {
     private Integer bufferSize;
     private Queue<Integer> indexQueue = new ConcurrentLinkedQueue<>();
 
-    private ConnModel connModel = null;
-
     public static Long testCount = 0L;
 
     public ProxyServer(Selector proxySelector, SelectionKey middleKey, ServerSocketChannel serverChannelProxy) {
         this(proxySelector, middleKey, serverChannelProxy, 4096);
-    }
-
-    public ProxyServer(Selector proxySelector, SelectionKey middleKey, ServerSocketChannel serverChannelProxy, ConnModel connModel) {
-        this(proxySelector, middleKey, serverChannelProxy, 4096);
-        this.connModel = connModel;
     }
 
     public ProxyServer(Selector proxySelector, SelectionKey middleKey, ServerSocketChannel serverChannelProxy, Integer maxConnectionCount) {
@@ -82,10 +68,15 @@ public class ProxyServer extends Thread {
     private void setKeyIndexMap(SelectionKey key, Integer index) {
         keyConvertMap.put(key, index);
         indexConvertMap.put(index, key);
+//        System.out.println("这是set:" +this.indexConvertMap);
         middleBufferMap.put(key, ByteBuffer.allocate(SocketTool.PROTOCOL_BUFFER_SIZE));
     }
 
+//    private void readMiddleSocketChannel(SelectionKey middleKey){
+//
+//    }
     public SelectionKey getSelectionKey(Integer indexId){
+//        System.out.println("这 get:" +this.indexConvertMap);
         return indexConvertMap.get(indexId);
     }
 
@@ -95,40 +86,46 @@ public class ProxyServer extends Thread {
         }
         lock.lock();
         try {
-            LOG.info("ProxyLoopData The index id is need to close: " + indexId);
+            log.info("[ProxyServer]ProxyLoopData需要关闭的indexid:" + indexId);
+//            System.out.println("[ProxyServer]ProxyLoopData需要关闭的indexid:" + indexId);
             SelectionKey key = indexConvertMap.get(indexId);
             if (key != null) {
                 indexConvertMap.remove(indexId);
-                giveBackIndexId(indexId);
                 if(key.channel() != null){
-                    LOG.info("The outer connection is been close");
+                    System.out.println("[ProxyServer]外部的连接被执行关闭");
                     key.channel().close();
                 }
                 middleBufferMap.remove(key);
                 keyConvertMap.remove(key);
             } else {
-                LOG.warn("What the fucking: While is null");
+                System.out.println("卧槽： 怎么是null了");
+                System.out.println();
+                System.out.println();
             }
         }catch (Exception e){
-            LOG.error(e.getStackTrace());
+            e.printStackTrace();
             throw e;
         } finally {
-
-            System.out.println("indexQueue size:" + this.indexQueue.size());
+            giveBackIndexId(indexId);
             lock.unlock();
         }
+
+//        keyConvertMap.remove(key);
+//        indexConvertMap.remove(indexId);
+//        middleBufferMap.remove(key);
+//        giveBackIndexId(indexId);
     }
 
 
     public void closeSocketByKey(SelectionKey clientKey) throws IOException {
-        LOG.info("[closeSocketByKey]>> client key need to close:" + clientKey);
+        System.out.println("[closeSocketByKey]ProxyLoopData需要关闭client key:" + clientKey);
         lock.lock();
 
         try{
             if(clientKey != null){
                 Integer index = keyConvertMap.get(clientKey);
 
-                LOG.info("[closeSocketByKey]>> index id:" + index);
+                System.out.println("[closeSocketByKey]>> index id:" + index);
                 if(index != null){
                     closeRemoteSocket(index);
                     indexConvertMap.remove(index);
@@ -143,7 +140,7 @@ public class ProxyServer extends Thread {
 
             }
         } catch (Exception e){
-            LOG.error(e.getStackTrace());
+            e.printStackTrace();
             throw e;
         } finally {
             lock.unlock();
@@ -179,15 +176,25 @@ public class ProxyServer extends Thread {
         int realLen = -1;
         try {
 
+//            if (!clientSocketChannel.isConnected() || clientSocketChannel.socket().isClosed()) {
+//                //TODO 需要告诉另一端，通知对端关闭
+//                this.closeSocketByKey(clientKey);
+//                return;
+//            }
+
+//            if (clientSocketChannel.socket().isClosed()) {
+//                System.out.println("[readClientChannel] clientSocketChannel.socket().isClosed()" + clientSocketChannel.socket().isClosed());
+//            }
+//            System.out.println("-----------test: 1");
             if ((realLen = clientSocketChannel.read(contextBytes)) > 0) {
+//                testCount += realLen;
+//                System.out.println("-----------test realLen:" + realLen);
                 contextBytes.flip();
-                if(connModel != null){
-                    connModel.addByteSend(realLen);
-                }
 
                 Integer index = keyConvertMap.get(clientKey);
                 ByteBuffer middleBuffer = middleBufferMap.get(clientKey);
 
+//                middleBuffer.putShort((short)index.intValue());
                 middleBuffer.putInt(SocketTool.encodeProtocol((short)realLen, (short)index.intValue()));
                 middleBuffer.put(contextBytes);
                 middleBuffer.flip();
@@ -195,11 +202,6 @@ public class ProxyServer extends Thread {
                 SocketChannel serverChannel = (SocketChannel) middleKey.channel();
                 serverChannel.write(middleBuffer);
                 while (middleBuffer.hasRemaining()) {
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(10);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
                     serverChannel.write(middleBuffer);
                 }
 
@@ -207,17 +209,16 @@ public class ProxyServer extends Thread {
                 middleBuffer.clear();
             }
             if (realLen == -1) {
-                LOG.warn("The length from outer is -1, so I close the connection");
+//                this.closeSocketByIndexId();
                 this.closeSocketByKey(clientKey);
             }
         } catch (Exception e) {
-
-            LOG.error("", e);
+            e.printStackTrace();
             try {
                 this.closeSocketByKey(clientKey);
                 return;
             } catch (Exception e1) {
-                LOG.error(e1.getStackTrace());
+                e1.printStackTrace();
             }
         }
     }
@@ -237,41 +238,42 @@ public class ProxyServer extends Thread {
                     SelectableChannel selectableChannel = readyKey.channel();
                     try {
                         if (readyKey.isValid() && readyKey.isAcceptable()) {
-                            LOG.info("New connection is visit");
 
                             SocketChannel socketChannel = SocketTool.getClientChannel(selectableChannel);
-                            LOG.info("Remote connection address is : " + socketChannel.getRemoteAddress());
-
-                            if(connModel.getSecurity().equals( RegisterProtocol.SECURITY )){
-                                InetSocketAddress ipAddr = (InetSocketAddress)socketChannel.getRemoteAddress();
-                                String ip = ipAddr.getAddress().toString().substring(1);
-                                if(!connModel.getTrustIps().contains(ip)){
-                                    LOG.warn("The channel is SECURITY，IP:" + ip + " is not in the trust list, the ip need auth first!");
-                                    socketChannel.close();
-                                    continue;
-                                }
-                            }
-
                             SocketTool.registerSocketReaderChannel(socketChannel, selector, SocketTool.BUFFER_SIZE);
 
                         } else if (readyKey.isValid() && readyKey.isConnectable()) {
                         } else if (readyKey.isValid() && readyKey.isReadable()) {
 
                             if (keyConvertMap.get(readyKey) == null) {
+//                                System.out.println(getIndexId());
                                 Integer indexId = getIndexId();
-                                LOG.info("===>>>>>The out index id is : "+indexId);
+                                System.out.println("===>>>>>从外面过来的indexID:"+indexId);
                                 if (indexId == null) {
-                                    LOG.warn("The connection has more then the max count(%d)", maxConnectionCount);
+                                    System.out.printf("The connection has more then the max count(%d)", maxConnectionCount);
                                     readyKey.channel().close();
                                     continue;
                                 }
                                 setKeyIndexMap(readyKey, indexId);
                             }
                             readClientSocketChannel(readyKey);
+//                            System.out.println("总共流量是:"+ testCount);
 
                         } else if (!readyKey.isValid()) {
+                            /*System.out.println("Server =======>not isValid");
+                            System.out.println("====== invalid");
+                            SelectionKey clientKey = proxyMap.get(readyKey);
+                            proxyMap.remove(readyKey);
+                            clientMap.remove(clientKey);
+
+                            clientKey.channel().close();
+                            readyKey.channel().close();
+
+                            clientKey.cancel();
+                            readyKey.cancel();*/
                         } else if (readyKey.isValid() && readyKey.isWritable()) {
-                            LOG.info("proxy ready key is write");
+                            System.out.println("Server =======>isWritable");
+                            System.out.println("proxy ready key is write");
                         }
 
                     } catch (Exception e) {
@@ -286,5 +288,12 @@ public class ProxyServer extends Thread {
         } catch (IOException e) {
 
         }
+
+    }
+
+    public static void main(String[] args) {
+//        IntStream.range(1, 12).forEach(i -> System.out.println(i));
+        Queue<Integer> indexQueue = new ConcurrentLinkedQueue<>();
+        System.out.println(indexQueue.poll());
     }
 }

@@ -1,4 +1,4 @@
-package org.wls.ddns;
+package org.wls.ddns.backup.socket.nio_socket;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -9,9 +9,9 @@ import java.nio.channels.*;
  */
 public class SocketTool {
 
-    public static Integer BUFFER_SIZE = 4096;
+    public static Integer BUFFER_SIZE = 2048;
     //多一个int
-    public static Integer PROTOCOL_BUFFER_SIZE = 4096 + 4;
+    public static Integer PROTOCOL_BUFFER_SIZE = 2048 + 4;
 
     public static SocketChannel getClientChannel(SelectableChannel selectableChannel) throws IOException {
         ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectableChannel;
@@ -25,7 +25,7 @@ public class SocketTool {
                                               Boolean isBlocking,
                                               int event) throws IOException, ClosedChannelException {
         socketChannel.configureBlocking(isBlocking);
-        //socket SelectionKey.OP_READ | SelectionKey.OP_WRITE | SelectionKey.OP_CONNECT
+        //socket通道可以且只可以注册三种事件SelectionKey.OP_READ | SelectionKey.OP_WRITE | SelectionKey.OP_CONNECT
         socketChannel.register(selector, event, ByteBuffer.allocate(bufferSize));
     }
 

@@ -77,23 +77,20 @@ public class RegisterProtocol {
 
     // 要做校验，确认可以解析
     public static RegisterProtocol decode(ByteBuffer byteBuffer /*, Integer protocolSize*/){
-        LOG.info("协议的byteBuffer数据大小为：" + byteBuffer.remaining());
+        LOG.info("Protocol's byteBuffer length : " + byteBuffer.remaining());
         Integer protocolSize = byteBuffer.getInt();
         if(protocolSize > byteBuffer.remaining()){
-            //数据没接受全，大概率
-            LOG.error("传来的协议大小 没有达到 协议头定义的长度");
+            LOG.error("The data size is less then protocol size.");
             return null;
         }
 
         if(protocolSize < SECRET_KEY_LEN + Integer.SIZE/8 + Integer.SIZE/8  + Integer.SIZE/8){
-            //数据就有问题
-            LOG.error("协议头定义的长度小于最小的协议长度，数据有问题哦");
+            LOG.error("The protocol length is less then the minimum protocol lenght , data exception");
             return null;
         }
 
         if(protocolSize > SECRET_KEY_LEN + Integer.SIZE/8+ Integer.SIZE/8 + Integer.SIZE/8 + NAME_MAX_LEN){
-            //数据就有问题
-            LOG.error("协议头定义的长度超过了最大长度, 数据有问题");
+            LOG.error("Protocol data is more then the max length, data exception");
             return null;
         }
         try{

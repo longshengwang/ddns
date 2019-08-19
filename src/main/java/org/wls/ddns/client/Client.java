@@ -104,20 +104,19 @@ public class Client implements Runnable {
 
     private void addLocalConnect(Integer indexId) throws IOException {
 
-        LOG.info("[新增到内部服务的连接][开始] indexID:" + indexId);
+        LOG.info("[Add connection to local service][Start] indexID:" + indexId);
         ByteBuffer middleBuffer = ByteBuffer.allocate(SocketTool.PROTOCOL_BUFFER_SIZE);
         SocketChannel clientChannel = SocketChannel.open();
         Socket clientSocket = clientChannel.socket();
         clientSocket.connect(new InetSocketAddress(this.localIp, this.localPort));
         registerSocketChannel(clientSocket.getChannel(), this.localSelector, SocketTool.BUFFER_SIZE);
 
-//        SelectionKey clientKey = clientSocket.getChannel().keyFor(this.localSelector);
         SelectionKey clientKey =  clientSocket.getChannel().keyFor(this.localSelector);
-        LOG.info("[新增到内部服务的连接]获取到key");
+        LOG.info("[Add connection to local service] Get the Key[TEST FOR DELAY]");
         indexProxyMap.put(indexId, clientKey);
         keyProxyMap.put(clientKey, indexId);
         keyByteBufferMap.put(clientKey, middleBuffer);
-        LOG.info("[新增到内部服务的连接][结束] indexID:" + indexId);
+        LOG.info("[Add connection to local service][END] indexID:" + indexId);
     }
 
     private boolean initRemoteConnect() {
@@ -131,10 +130,7 @@ public class Client implements Runnable {
             SelectionKey middleKey = remoteSocket.getChannel().keyFor(remoteSelector);
 
             RegisterProtocol protocol = new RegisterProtocol(localPort, proxyPort, name, secretKey, security);
-            // 这里需要通知server端需要用代理端口
-//            ByteBuffer b = ByteBuffer.allocate(SocketTool.PROTOCOL_BUFFER_SIZE);
-//            b.putInt(proxyPort.intValue());
-//            b.flip();
+            // tell the protocol to server
             ByteBuffer protocolBuffer = protocol.encode();
             remoteChannel.write(protocolBuffer);
 
@@ -142,7 +138,7 @@ public class Client implements Runnable {
                 remoteChannel.write(protocolBuffer);
             }
 
-            // 这里需要等待server 告诉client 代理端口是否成功开启
+            // Need to wait server's response, server will tell client the proxy port is open successfully
             ByteBuffer o = (ByteBuffer) middleKey.attachment();
             int len = 0;
             // 0: ok
@@ -155,7 +151,7 @@ public class Client implements Runnable {
             int status = o.getInt(0);
             o.clear();
             if (status == 0) {
-                LOG.info("远程端口正确开启");
+                LOG.info("Remote Proxy port is open successfully");
                 return true;
             }
 //            return true;
@@ -173,16 +169,16 @@ public class Client implements Runnable {
 
 
         Integer indexId = this.keyProxyMap.get(readyKey);
-        LOG.warn("[警告]stopClient(SelectionKey readyKey): indexid: " + indexId + " >>>>>>>>");
+        LOG.warn("[STOP WARN]stopClient(SelectionKey readyKey): indexid: " + indexId + " >>>>>>>>");
         try {
             ByteBuffer bf = this.keyByteBufferMap.get(readyKey);
             if (bf == null) {
-                LOG.warn("bytebuffer已经被清除了");
+                LOG.warn("bytebuffer has been clear");
                 return;
             }
             sendCloseFlag2Middle(indexId);
             readyKey.channel().close();
-            LOG.warn("[警告]stopClient(SelectionKey readyKey) : indexid: " + indexId + " <<<<<<<<");
+            LOG.warn("[STOP WARN]stopClient(SelectionKey readyKey) : indexid: " + indexId + " <<<<<<<<");
         } catch (IOException e) {
             throw e;
         } finally {
@@ -198,16 +194,16 @@ public class Client implements Runnable {
 
 
         Integer indexId = this.keyProxyMap.get(readyKey);
-        LOG.warn("[警告]stopClient(SelectionKey readyKey): indexid: " + indexId + " >>>>>>>>");
+        LOG.warn("[STOP WARN]stopClient(SelectionKey readyKey): indexid: " + indexId + " >>>>>>>>");
         try {
             ByteBuffer bf = this.keyByteBufferMap.get(readyKey);
             if (bf == null) {
-                LOG.warn("bytebuffer已经被清除了");
+                LOG.warn("bytebuffer has been clear");
                 return;
             }
 //            sendCloseFlag2Middle(indexId);
             readyKey.channel().close();
-            LOG.warn("[警告]stopClient(SelectionKey readyKey) : indexid: " + indexId + " <<<<<<<<");
+            LOG.warn("[STOP WARN]stopClient(SelectionKey readyKey) : indexid: " + indexId + " <<<<<<<<");
         } catch (IOException e) {
             throw e;
         } finally {
@@ -227,7 +223,7 @@ public class Client implements Runnable {
     private void stopClient(Integer indexId) throws IOException {
 //        clientStopLock.lock();
         try {
-            LOG.warn("[警告]client stop client indexID:" + indexId);
+            LOG.warn("[STOP WARN]client stop client indexID:" + indexId);
             SelectionKey key = this.indexProxyMap.get(indexId);
 
             if (key != null) {
@@ -264,14 +260,14 @@ public class Client implements Runnable {
 //        buffer.clear();
     }
 
-    //上行数据
+    //UPPER DATA
     private void getDataFromLocal(SelectionKey localKey, SocketChannel readChannel, SocketChannel writeChannel) {
 //        LOG.info("====== getDataFromLocal");
         ByteBuffer byteBuffer = (ByteBuffer) localKey.attachment();
         ByteBuffer middleBuffer = keyByteBufferMap.get(localKey);
         int count = 0;
         while (middleBuffer == null && count < 10) {
-            LOG.warn("[上行数据]临时缓存还没有建立，睡上100ms");
+            LOG.warn("[UPPER DATA]The tmp buffer has not been create, sleep 100 ms");
             try {
                 TimeUnit.MILLISECONDS.sleep(100);
             } catch (InterruptedException e) {
@@ -284,7 +280,7 @@ public class Client implements Runnable {
             int len = 0;
             if ((len = readChannel.read(byteBuffer)) > 0) {
 
-                LOG.debug("[上行数据]数据长度：" + len);
+//                LOG.debug("[UPPER DATA]data length：" + len);
                 byteBuffer.flip();
 
                 middleBuffer.putInt(SocketTool.encodeProtocol((short) len, (short) keyProxyMap.get(localKey).intValue()));
@@ -297,7 +293,7 @@ public class Client implements Runnable {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    LOG.info("=================================== 需要重复发送 ======");
+                    LOG.info("=================================== Need repeat send ======");
                     writeChannel.write(middleBuffer);
                 }
                 byteBuffer.clear();
@@ -307,16 +303,16 @@ public class Client implements Runnable {
 //                LOG.warn("################ 已上传的数据总量:" + countStatistic + "################");
             }
             if (len == -1) {
-                LOG.info("[上行数据]client 数据已经全部返回 indexid====》》》");
+                LOG.info("[UPPER DATA]client data has ALL return indexid====》》》");
                 stopClientWithoutSendMessage(localKey);
             }
         } catch (IOException e) {
             LOG.error("", e);
-            LOG.error("[上行数据]client 端主动断开了连接，抛出异常");
+            LOG.error("[UPPER DATA]client close the connection, throw exception");
             try {
                 stopClient(localKey);
             } catch (IOException e1) {
-                LOG.error("[上行数据]抛出异常时尝试关闭连接失败");
+                LOG.error("[UPPER DATA]Close the connection again ========<><><><><><");
             }
 
         }
@@ -327,14 +323,14 @@ public class Client implements Runnable {
 //        LOG.debug("key:" + serverKey + ".... bytebuffer remain:" + byteBuffer.remaining());
         Metadata dataInfo = dataInfoMap.get(serverKey);
         if (byteBuffer.remaining() == 0) {
-            LOG.debug("[下行数据]remain 是空");
+            LOG.debug("[DOWN DATA]remain is empty");
             byteBuffer.clear();
             return;
         }
         if (dataInfo.isNull()) {
             Integer protocolHeader;
             if(dataInfo.hasNotCompleteProtocolIndex()){
-                LOG.info("获取头部的时候发现有未完成的index, 长度: " + dataInfo.getNotCompleteProtocolSize());
+                LOG.info("Find the not complete data when get the header protocol, length: " + dataInfo.getNotCompleteProtocolSize());
                 Integer indexRemainLength = Integer.BYTES - dataInfo.getNotCompleteProtocolSize();
                 if(byteBuffer.remaining() < indexRemainLength){
                     LOG.error("!@#$%^&*() Fucking the network when go this step *********************************");
@@ -345,7 +341,7 @@ public class Client implements Runnable {
                 protocolHeader = dataInfo.getIndexByNotCompleteList();
             } else {
                 if(byteBuffer.remaining() < 4){
-                    LOG.info("获取头部的时候发现缓存长度小于4个字节，长度是：" + byteBuffer.remaining());
+                    LOG.info("Find the length of bytebuffer is less then 4 when get protocol header, length :" + byteBuffer.remaining());
                     IntStream.range(0, byteBuffer.remaining()).forEach(i->{
                         dataInfo.putByte2NotCompleteProtocol(byteBuffer.get());
                     });
@@ -359,7 +355,7 @@ public class Client implements Runnable {
             int indexId = protocolHeader >> Short.SIZE;
             short dataSize = (short) (protocolHeader & Short.MAX_VALUE);
             if (indexId < 0) {
-//                LOG.info("[下行数据] [关闭消息]对端通知关闭了 indexId:" + indexId);
+//                LOG.info("[DOWN DATA] [关闭消息]对端通知关闭了 indexId:" + indexId);
                 int realIndexId = -indexId;
                 stopClient(realIndexId);
                 loopParseMiddleData(serverKey, byteBuffer);
@@ -370,9 +366,9 @@ public class Client implements Runnable {
                 try {
                     addLocalConnect(indexId);
                 } catch (IOException e) {
-                    LOG.warn("[错误]连接到内部服务失败(内部端口未启动)");
+                    LOG.warn("[Connection ERROR]Connect to inner service error(Port is not running)");
                     sendCloseFlag2Middle(indexId);
-                    // 这里需要丢掉数据
+                    // drop the data - must
                     IntStream.range(0, dataSize).forEach(i -> byteBuffer.get());
                     loopParseMiddleData(serverKey, byteBuffer);
                     return;
@@ -386,11 +382,11 @@ public class Client implements Runnable {
         SelectionKey key = indexProxyMap.get(dataInfo.getIndexId());
         if (key == null) {
             //表示连接内部的连接已经断开，那么需要清除dataInfo，还有当前的缓存也需要clear
-            LOG.warn("[下行数据]key是空的，当然需要去关闭了");
+            LOG.warn("[DOWN DATA]key is empty, then close it ");
 //            stopClient(key);
             stopClient(dataInfo.getIndexId());
             dataInfo.reset();
-            //清除本来要发往内部的数据
+            //clear the data which is prepare to send inner service
             byte[] remainBytes = new byte[dataInfo.getRemainingLength()];
             byteBuffer.get(remainBytes);
             loopParseMiddleData(serverKey, byteBuffer);
@@ -411,9 +407,9 @@ public class Client implements Runnable {
                     writeChannel.write(byteBuffer);
                 }
             } catch (IOException e) {
-                LOG.error("[Down数据][警告]=== 我抓住了这个异常 (1  -  1) >>>>");
+                LOG.error("[Down Data][WARN]=== [EXP WARN]=== I catch the exception (1  -  1) >>>>");
                 LOG.error("", e);
-                LOG.error("[Down数据][警告]=== 我抓住了这个异常 <<<<<");
+                LOG.error("[Down Data][WARN]=== [EXP WARN]=== I catch the exception <<<<<");
                 stopClient(key);
                 dataInfo.reset();
             } finally {
@@ -472,7 +468,7 @@ public class Client implements Runnable {
     }
 
 
-    //下行数据
+    //DOWN DATA
     private void getDataFromMiddle(SelectionKey serverKey, SocketChannel readChannel) throws IOException {
 //        LOG.info("进入到解析的流程了");
         if (dataInfoMap.get(serverKey) == null) {
@@ -480,19 +476,18 @@ public class Client implements Runnable {
         }
         ByteBuffer byteBuffer = (ByteBuffer) serverKey.attachment();
         if (byteBuffer.remaining() == 0) {
-//            LOG.warn("bytebuffer已经没有可读的空间了，手动(丑陋)初始化.");
-//            byteBuffer.clear();
+            LOG.warn("bytebuffer remaining is empty, munual close(ugly)");
+            byteBuffer.clear();
         }
 
         int len = 0;
         if ((len = readChannel.read(byteBuffer)) > 0) {
             byteBuffer.flip();
-//            LOG.debug("[下行数据]byteBuffer数据长度：" + len);
             loopParseMiddleData(serverKey, byteBuffer);
         }
 
         if (len == -1) {
-            LOG.warn("[Down数据]middle 通道已经断开了");
+            LOG.warn("[Down data]middle channel has been closed");
             serverKey.channel().close();
             clearAll();
         }
@@ -523,7 +518,6 @@ public class Client implements Runnable {
             }
             byteBuffer.clear();
         }
-        //middle 通道有问题，已经断开连接了
         if(len == -1){
             System.out.println("middle 通道已经断开了");
             readyKey.channel().close();
@@ -535,7 +529,7 @@ public class Client implements Runnable {
     public void run() {
         initLocalConnect();
         if (!initRemoteConnect()) {
-            LOG.error("[ERROR]初始化失败，服务器端返回错误");
+            LOG.error("[ERROR]Initial ERROR，Some errors come from server");
             return;
         }
 
@@ -554,14 +548,13 @@ public class Client implements Runnable {
                 }
                 Iterator<SelectionKey> selecionKeys = this.remoteSelector.selectedKeys().iterator();
 
-                //循环读取middle的内容
                 while (selecionKeys.hasNext()) {
                     SelectionKey readyKey = selecionKeys.next();
                     selecionKeys.remove();
                     SocketChannel channel = (SocketChannel) readyKey.channel();
 
                     if (channel.socket().isClosed()) {
-                        LOG.warn("对端已经关闭了，所以我这边也关掉他");
+                        LOG.warn("The remote has been closed, so I kill it");
                         stopClient(readyKey);
                         continue;
                     }
@@ -571,7 +564,6 @@ public class Client implements Runnable {
                     }
 
                     /*if (readyKey.isValid() && readyKey.isAcceptable()) {
-                        //这里并不会走到，因为remoteSelector只是一个client
                         System.out.println("client is isAcceptable");
                     } else if (readyKey.isValid() && readyKey.isWritable()) {
                     } else if (readyKey.isValid() && readyKey.isReadable()) {
