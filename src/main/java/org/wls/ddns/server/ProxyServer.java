@@ -268,17 +268,13 @@ public class ProxyServer extends Thread {
                                 setKeyIndexMap(readyKey, indexId);
                             }
                             readClientSocketChannel(readyKey);
-
                         } else if (!readyKey.isValid()) {
                         } else if (readyKey.isValid() && readyKey.isWritable()) {
                             LOG.info("proxy ready key is write");
                         }
-
                     } catch (Exception e) {
 
                     }
-
-
                 }
 
 
