@@ -58,8 +58,16 @@ public class Server {
         this.httpPort = httpPort;
     }
 
-    public Selector getClientSelctor() {
+    public Selector getClientSelector() {
         return clientSelector;
+    }
+
+    private void sleep(Integer sleepTimeOfMill){
+        try {
+            TimeUnit.MILLISECONDS.sleep(sleepTimeOfMill);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public Boolean addProxyServer(/*Integer port*/RegisterProtocol protocol, SelectionKey middleKey){
@@ -360,16 +368,8 @@ public class Server {
                 dataInfo.decrease(contextBytes.remaining());
 
                 channel.write(contextBytes);
-//                if(contextBytes.hasRemaining()){
-//                    channel.write(contextBytes);
-//                }
-
                 while(contextBytes.hasRemaining()) {
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(10);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    this.sleep(10);
                     LOG.debug("=================================== Need repeat send ======");
                     channel.write(contextBytes);
                 }
@@ -389,15 +389,8 @@ public class Server {
                 dataInfo.decrease(contextBytes.remaining());
 
                 channel.write(contextBytes);
-//                if(contextBytes.hasRemaining()){
-//                    channel.write(contextBytes);
-//                }
                 while(contextBytes.hasRemaining()) {
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(10);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    this.sleep(10);
                     LOG.debug("=================================== Need repeat send ======");
                     channel.write(contextBytes);
                 }
@@ -425,11 +418,8 @@ public class Server {
             try{
                 channel.write(remainBuffer);
                 while(remainBuffer.hasRemaining()) {
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(10);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+
+                    this.sleep(10);
                     LOG.debug("=================================== Need repeat send ======");
                     channel.write(remainBuffer);
                 }

@@ -25,12 +25,13 @@ proxy server用来处理外部访问，每次访问都会产生一个 select key
 2. 高速发送数据包的时候 协议头(id+len) 可能会分两次接收过来， 要注意处理
 3. 数据接收的时候可能是分批次接收，不能保证传过来的数据是完整的(protocol+ data)
 4. 如何判断关闭
--  read len == -1
--  close exception
+    -  read len == -1
+    -  close exception
 5. 统计是会消耗性能的，如果需要减小到最小影响，需要另开线程用queue来处理
 6. while remaining需要用sleep来减小对CPU的消耗
 7. 协议头的大小以及解析都会影响传输速率
 8. NIO中的bytebuff的size大小会影响传输速率
-9. 目前协议头里面是 indexID + dataLen的结构（short+ short）,也就是现在协议头占用一个 INT(4个字节,32位)。其中还是有一些浪费的，因为data length和index id都是小于4096的。 
+9. 目前协议头里面是 indexID + dataLen的结构（short+ short）,也就是现在协议头占用一个 INT(4个字节,32位)。其中还是有一些浪费的，因为data length和index id都是小于4096的。
+10. 注意有一些请求还没有传到外部的时候，外部链接就已经断开了，这个时候取到的bytebuffer需要清除，否则后续无法获取数据了
 
 
