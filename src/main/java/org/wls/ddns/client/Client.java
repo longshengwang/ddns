@@ -40,6 +40,8 @@ public class Client implements Runnable {
     private String secretKey;
     private String name;
     private Integer security = RegisterProtocol.NO_SECURITY;
+    private boolean isServerConnected = false;
+    private boolean isClose = false;
 
     private static Long countStatistic = 0L;
 
@@ -119,7 +121,7 @@ public class Client implements Runnable {
         LOG.info("[Add connection to local service][END] indexID:" + indexId);
     }
 
-    private boolean initRemoteConnect() {
+    private boolean initRemoteConnect() throws Exception {
         Socket remoteSocket = null;
         try {
             this.remoteSelector = Selector.open();
@@ -132,6 +134,10 @@ public class Client implements Runnable {
             RegisterProtocol protocol = new RegisterProtocol(localPort, proxyPort, name, secretKey, security);
             // tell the protocol to server
             ByteBuffer protocolBuffer = protocol.encode();
+
+            //TODO 测试协议出错代码
+//            protocolBuffer.getInt();
+
             remoteChannel.write(protocolBuffer);
 
             while (protocolBuffer.hasRemaining()) {
@@ -144,23 +150,47 @@ public class Client implements Runnable {
             // 0: ok
             // 1: error
             // 2: not correct secret key;
+            int count = 0;
             while ((len = remoteChannel.read(o)) == 0) {
+                count++;
+                if(count > 100){
+                    LOG.info("Wait server response has more then 10s, but no response.So not wait");
+                    throw new Exception("SERVER_ERROR");
+//                    return false;
+                }
                 Thread.sleep(100);
             }
             o.flip();
+            if(o.remaining() == 0){
+                LOG.info("Server close the connection, the protocol may be not correct!");
+                throw new Exception("SERVER_ERROR");
+            }
             int status = o.getInt(0);
             o.clear();
             if (status == 0) {
                 LOG.info("Remote Proxy port is open successfully");
                 return true;
+            } else {
+                LOG.info("Register to server error, please check the proxy port is used!");
+                throw new Exception("SERVER_ERROR");
             }
-//            return true;
         } catch (IOException e) {
-            LOG.error("", e);
+//            LOG.error("", e);
+            LOG.error(e.getMessage());
+            LOG.error("------------------------------------------");
+            LOG.error("Please check remote server is running!!");
+            LOG.error("------------------------------------------");
         } catch (InterruptedException e) {
-            LOG.error("", e);
+//            LOG.error("", e);
+            LOG.error(e.getMessage());
+        } catch(Exception e){
+//            e.printStackTrace();
+            if(e.getMessage().equals("SERVER_ERROR")){
+                throw e;
+            } else {
+                LOG.error("", e);
+            }
         }
-
         return false;
     }
 
@@ -216,6 +246,7 @@ public class Client implements Runnable {
     }
 
     private void clearAll() {
+        this.isServerConnected = false;
 
     }
 
@@ -527,11 +558,8 @@ public class Client implements Runnable {
 
     @Override
     public void run() {
+
         initLocalConnect();
-        if (!initRemoteConnect()) {
-            LOG.error("[ERROR]Initial ERROR，Some errors come from server");
-            return;
-        }
 
         new Thread() {
             public void run() {
@@ -539,29 +567,44 @@ public class Client implements Runnable {
             }
         }.start();
 
-
-        try {
-            while (true) {
-                int keyCount = this.remoteSelector.select(100);
-                if (keyCount == 0) {
-                    continue;
+        while(true){
+            LOG.info("try to connect to server!");
+            try{
+                if (!initRemoteConnect()) {
+                    LOG.error("Initial ERROR，Some errors come from server");
+                    this.isServerConnected = false;
+                } else {
+                    this.isServerConnected = true;
                 }
-                Iterator<SelectionKey> selecionKeys = this.remoteSelector.selectedKeys().iterator();
+            } catch (Exception e){
+                if(e.getMessage().equals("SERVER_ERROR")){
+                    isClose = true;
+                    break;
+                }
+            }
 
-                while (selecionKeys.hasNext()) {
-                    SelectionKey readyKey = selecionKeys.next();
-                    selecionKeys.remove();
-                    SocketChannel channel = (SocketChannel) readyKey.channel();
-
-                    if (channel.socket().isClosed()) {
-                        LOG.warn("The remote has been closed, so I kill it");
-                        stopClient(readyKey);
+            try {
+                while (true && this.isServerConnected) {
+                    int keyCount = this.remoteSelector.select(100);
+                    if (keyCount == 0) {
                         continue;
                     }
+                    Iterator<SelectionKey> selecionKeys = this.remoteSelector.selectedKeys().iterator();
 
-                    if (readyKey.isValid() && readyKey.isReadable()) {
-                        this.getDataFromMiddle(readyKey, channel);
-                    }
+                    while (selecionKeys.hasNext()) {
+                        SelectionKey readyKey = selecionKeys.next();
+                        selecionKeys.remove();
+                        SocketChannel channel = (SocketChannel) readyKey.channel();
+
+                        if (channel.socket().isClosed()) {
+                            LOG.warn("The remote has been closed, so I kill it");
+                            stopClient(readyKey);
+                            continue;
+                        }
+
+                        if (readyKey.isValid() && readyKey.isReadable()) {
+                            this.getDataFromMiddle(readyKey, channel);
+                        }
 
                     /*if (readyKey.isValid() && readyKey.isAcceptable()) {
                         System.out.println("client is isAcceptable");
@@ -572,19 +615,29 @@ public class Client implements Runnable {
                         throw new Exception("CONNECT_IS_NOT_VALID");
                     }*/
 
+                    }
                 }
-            }
-        } catch (Exception e) {
-            LOG.error("", e);
-        } finally {
+            } catch (Exception e) {
+                LOG.error("", e);
+            } finally {
 
+            }
+            try {
+                LOG.info("------------------------------------------");
+                LOG.info("Sleep 10s for wait");
+                LOG.info("------------------------------------------");
+                TimeUnit.MILLISECONDS.sleep(10000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+
     }
 
     //up link
     public void startClientProxyLoop() {
         try {
-            while (true) {
+            while (true && !isClose) {
                 int keyCount = this.localSelector.select(100);
                 if (keyCount == 0) {
                     continue;
@@ -697,16 +750,16 @@ public class Client implements Runnable {
         }
         new Thread(cl).start();
 
-
+/*
 //        Client cl = new Client("47.98.136.177", 9000, 2323, "127.0.0.1", 80);
 //        Client cl = new Client("192.168.122.45", 9000, 2323, "127.0.0.1", 80);
 //        Client cl = new Client("127.0.0.1", 9000, 7777, "127.0.0.1", 7788);
-//        Client cl = new Client("127.0.0.1", 9000, 9001, "127.0.0.1", 5201);
+        Client cl = new Client("127.0.0.1", 9000, 9001, "127.0.0.1", 5201);
 //        Client cl = new Client("192.168.122.45", 9000, 9001, "127.0.0.1", 8000);
-//        cl.setName("wls-ssh");
-//        cl.setSecretKey("1234567890123456");
+        cl.setName("wls-ssh");
+        cl.setSecretKey("1234567890123456");
 //        cl.setSecurity(RegisterProtocol.SECURITY);
-//        new Thread(cl).start();
+        new Thread(cl).start();*/
 
     }
 
