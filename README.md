@@ -1,5 +1,5 @@
 # 编译说明
-### 1. gradle版本
+### 1. gradle和java版本
 ```
 Gradle 4.6
 ------------------------------------------------------------
@@ -12,6 +12,9 @@ Ant:          Apache Ant(TM) version 1.9.9 compiled on February 2 2017
 JVM:          1.8.0_121 (Oracle Corporation 25.121-b13)
 OS:           Mac OS X 10.14 x86_64
 ```
+
+`JAVA版本是1.8`
+
 ### 2. 编译命令
 ```
 gradle build
@@ -44,10 +47,8 @@ distributions {
 
 ```
 
-
-
 # 运行说明
-编译生成的tar包或者zip解压下来直接可以使用
+编译生成的tar包或者zip解压下来直接可以使用。或者从github的release上获取最新编译好的包
 ### 1. server命令行运行
 ```
 # 默认service port是9000， http port是9999
