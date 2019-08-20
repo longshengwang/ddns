@@ -1,3 +1,87 @@
+# 编译说明
+### 1. gradle版本
+```
+Gradle 4.6
+------------------------------------------------------------
+
+Build time:   2018-02-28 13:36:36 UTC
+Revision:     8fa6ce7945b640e6168488e4417f9bb96e4ab46c
+
+Groovy:       2.4.12
+Ant:          Apache Ant(TM) version 1.9.9 compiled on February 2 2017
+JVM:          1.8.0_121 (Oracle Corporation 25.121-b13)
+OS:           Mac OS X 10.14 x86_64
+```
+### 2. 编译命令
+```
+gradle build
+```
+### 3. 编译前请先阅读该项
+由于gradle同时只能存在一个distribution，而ddns需要编译一个client和一个server。
+所以需要在编译的时候手动注释和放开.
+
+```
+distributions {
+## 这是server的编译脚本
+//    ddserver {
+//        baseName = 'dserver'
+//        mainClassName = 'org.wls.ddns.server.Server'
+//        manifest {
+//            attributes 'Main-Class': 'org.wls.ddns.server.Server'
+//        }
+//        version '1.0-server'
+//    }
+## 这是client的编译脚本
+    ddclient {
+        baseName = 'dclient'
+        mainClassName = 'org.wls.ddns.client.Client'
+        manifest {
+            attributes 'Main-Class': 'org.wls.ddns.client.Client'
+        }
+        version '1.0-client'
+    }
+}
+
+```
+
+
+
+# 运行说明
+编译生成的tar包或者zip解压下来直接可以使用
+### 1. server命令行运行
+```
+# 默认service port是9000， http port是9999
+bin/ddns <service-port>  <http-port>
+```
+>注：windows运行bat脚本
+
+### 2. client命令行运行
+```
+## 详情看 --help
+bin/ddns  -s 47.98.136.177:9000 -c 127.0.0.1:22 -k woshi -n wls_company -p 9001
+```
+>注：windows运行bat脚本
+### 3. server 运行在docker
+这是简化版，也可以自己写dockerfile。
+```
+docker run -d --network host  -v /root/ddns/ddns-1.0-server:/root/ --name ddns_java_runtime openjdk:8 /root/bin/ddns 9000 8888
+```
+
+### 4. 客户端设置安全使用时
+客户端开启安全性验证，也就是命令行增加 `-a`.
+1. 生成验证URL(服务器运行)
+```
+### 这里的name就是client运行时指定的name
+curl localhost:9999/auth/gen/<name>
+```
+
+2. 校验URL(客户端运行，需要访问的内网的外部主机上)
+```
+### uuid 在第一步中生成
+curl localhost:9999/auth/validate/<uuid>
+```
+
+
 # 后续
 - 可以完善gradle配置文件(client和server 分开编译，并且编译文件最小化)
 - 增加docker file配置

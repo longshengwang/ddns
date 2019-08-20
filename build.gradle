@@ -1,25 +1,25 @@
-group 'wls'
-version '1.0-server'
+//group 'wls'
+//version '1.0-server'
 //version '1.0-client'
 
 apply plugin: 'java'
 apply plugin: 'application'
 
 
-mainClassName = 'org.wls.ddns.server.Server'
+//mainClassName = 'org.wls.ddns.server.Server'
 //mainClassName = 'org.wls.ddns.client.Client'
 
-jar {
-    from {
-        //添加依懒到打包文件
-        //configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-        configurations.runtime.collect{zipTree(it)}
-    }
-    manifest {
-        attributes 'Main-Class': 'org.wls.ddns.server.Server'
-//        attributes 'Main-Class': 'org.wls.ddns.client.Client'
-    }
-}
+//jar {
+//    from {
+//        //添加依懒到打包文件
+//        //configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+//        configurations.runtime.collect{zipTree(it)}
+//    }
+//    manifest {
+////        attributes 'Main-Class': 'org.wls.ddns.server.Server'
+////        attributes 'Main-Class': 'org.wls.ddns.client.Client'
+//    }
+//}
 
 sourceCompatibility = 1.8
 
@@ -35,3 +35,46 @@ dependencies {
     compile 'io.netty:netty-all:4.1.38.Final'
     compile group: 'commons-cli', name: 'commons-cli', version: '1.4'
 }
+
+apply plugin: 'distribution'
+distributions {
+//    ddserver {
+//        baseName = 'dserver'
+//        mainClassName = 'org.wls.ddns.server.Server'
+//        manifest {
+//            attributes 'Main-Class': 'org.wls.ddns.server.Server'
+//        }
+//        version '1.0-server'
+//    }
+
+    ddclient {
+        baseName = 'dclient'
+        mainClassName = 'org.wls.ddns.client.Client'
+        manifest {
+            attributes 'Main-Class': 'org.wls.ddns.client.Client'
+        }
+        version '1.0-client'
+    }
+}
+
+
+
+/*
+
+task ddnsClient(type: Jar,  dependsOn: 'classes') {
+//    apply plugin: 'distribution'
+////    baseName = 'client'
+////    distributions {
+////        client {
+////            baseName 'client'
+////        }
+////    }
+    version '1.0-client'
+    description 'Build ddns client jar'
+    mainClassName = 'org.wls.ddns.client.Client'
+    manifest {
+        attributes 'Main-Class': 'org.wls.ddns.client.Client'
+    }
+}
+
+*/
