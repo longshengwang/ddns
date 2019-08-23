@@ -2,6 +2,7 @@ package org.wls.ddns.http.controller;
 
 import com.alibaba.fastjson.JSONObject;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
 import org.wls.ddns.http.ProxyConfig;
 import org.wls.ddns.http.lib.annotation.JsonParam;
 import org.wls.ddns.http.lib.annotation.PathParam;
@@ -18,11 +19,10 @@ import java.util.Map;
  * controller
  */
 public class ProxyStatisticController extends BaseController {
-//    ProxyConfig proxyConfig;
-
-    public ProxyStatisticController(ProxyConfig proxyConfig,  ChannelHandlerContext channelHandlerContext){
-        super(proxyConfig, channelHandlerContext);
+    public ProxyStatisticController(ProxyConfig proxyConfig, ChannelHandlerContext channelHandlerContext, FullHttpRequest request) {
+        super(proxyConfig, channelHandlerContext, request);
     }
+
     /**
      * 测试GET请求
      *

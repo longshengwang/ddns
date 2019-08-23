@@ -56,6 +56,14 @@ bin/ddns <service-port>  <http-port>
 ```
 >注：windows运行bat脚本
 
+另外注意如果用nginx代理ip验证的时候，需要增加ip remote的设定： `proxy_set_header X-Real-IP $remote_addr;`，否则取的永远都是本地IP
+```
+location /ddns/validate/ {
+   proxy_set_header X-Real-IP $remote_addr;
+   proxy_pass http://localhost:9999/auth/validate/;
+}
+```
+
 ### 2. client命令行运行
 ```
 ## 详情看 --help

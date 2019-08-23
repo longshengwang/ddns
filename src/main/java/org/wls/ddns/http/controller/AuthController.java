@@ -1,6 +1,7 @@
 package org.wls.ddns.http.controller;
 
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.wls.ddns.http.ProxyConfig;
@@ -23,10 +24,14 @@ public class AuthController extends BaseController{
 
     private static Map<String, String> authKeyMap = new ConcurrentHashMap<>();
 
-    public AuthController(ProxyConfig proxyConfig, ChannelHandlerContext channelHandlerContext){
-        super(proxyConfig, channelHandlerContext);
-
+    public AuthController(ProxyConfig proxyConfig, ChannelHandlerContext channelHandlerContext, FullHttpRequest request) {
+        super(proxyConfig, channelHandlerContext, request);
     }
+
+//    public AuthController(ProxyConfig proxyConfig, ChannelHandlerContext channelHandlerContext){
+//        super(proxyConfig, channelHandlerContext);
+//
+//    }
 
 
     @RouterMapping(api = "/auth/gen/{name}", method = "GET")
@@ -41,24 +46,29 @@ public class AuthController extends BaseController{
     }
 
     /**
-     * 测试POST请求
+     * If use nginx to proxy the validate api. 'X-Real-IP' is used to save the real remote ip in the headers
      *
      */
     @RouterMapping(api = "/auth/validate/{uuid}", method = "GET")
-    public String validate(@PathParam("uuid") String uuid) {
+    public String validate(@PathParam("uuid") String uuid) throws Exception {
         if(authKeyMap.get(uuid) != null){
             String name = authKeyMap.get(uuid);
             authKeyMap.remove(uuid);
 
+            if(request.headers().get("X-Real-IP") != null ){
+                proxyConfig.addTrustIps(name, request.headers().get("X-Real-IP"));
+            } else {
 
-            InetSocketAddress insocket = (InetSocketAddress) channelHandlerContext.channel()
-                    .remoteAddress();
-            LOG.error(insocket.getAddress());
-            proxyConfig.addTrustIps(name, insocket.getAddress().toString().substring(1));
+                InetSocketAddress insocket = (InetSocketAddress) channelHandlerContext.channel()
+                        .remoteAddress();
+                LOG.error(insocket.getAddress());
+                proxyConfig.addTrustIps(name, insocket.getAddress().toString().substring(1));
+            }
 
             return "OK";
+        } else {
+            throw new Exception("KEY_NOT_VALID");
         }
 
-        return "Not Valid";
     }
 }

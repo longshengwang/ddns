@@ -97,12 +97,13 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                     }
                 });
                 // 执行router映射的方法，并获取返回结果
-                result = executeMethod(router, channelHandlerContext, params.toArray());
+                result = executeMethod(router, request, channelHandlerContext, params.toArray());
                 // 设置response状态为 OK
                 status = HttpResponseStatus.OK;
             } else {
                 // 如果没有参数，直接执行映射的方法
-                result = executeMethod(router, channelHandlerContext);
+                result = executeMethod(router, request, channelHandlerContext);
+                status = HttpResponseStatus.OK;
             }
         } catch (Exception e) {
             // 如果捕获到异常，将异常信息放到返回结果里
@@ -165,11 +166,11 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
      * @return Object
      * @throws Exception 执行异常
      */
-    private Object executeMethod(Router router,ChannelHandlerContext channelHandlerContext, Object... params) throws Exception {
+    private Object executeMethod(Router router, FullHttpRequest request, ChannelHandlerContext channelHandlerContext, Object... params) throws Exception {
         Class<?> cls = router.gettClass();
 
-        Constructor clsCst= cls.getDeclaredConstructor(ProxyConfig.class, ChannelHandlerContext.class);
-        Object obj = clsCst.newInstance(this.proxyConfig, channelHandlerContext);
+        Constructor clsCst= cls.getDeclaredConstructor(ProxyConfig.class, ChannelHandlerContext.class, FullHttpRequest.class);
+        Object obj = clsCst.newInstance(this.proxyConfig, channelHandlerContext, request);
 
 //        Object obj = cls.newInstance();
         Method method = router.getMethod();
