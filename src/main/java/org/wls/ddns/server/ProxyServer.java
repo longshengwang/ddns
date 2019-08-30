@@ -210,6 +210,7 @@ public class ProxyServer extends Thread {
                 LOG.warn("The length from outer is -1, so I close the connection");
                 this.closeSocketByKey(clientKey);
             }
+//            System.out.println("len =======  0");
         } catch (Exception e) {
 
             LOG.error("", e);
@@ -254,9 +255,47 @@ public class ProxyServer extends Thread {
 
                             SocketTool.registerSocketReaderChannel(socketChannel, selector, SocketTool.BUFFER_SIZE);
 
-                        } else if (readyKey.isValid() && readyKey.isConnectable()) {
-                        } else if (readyKey.isValid() && readyKey.isReadable()) {
+                            SelectionKey clientKey = socketChannel.keyFor(selector);
+//                            System.out.println("====accept client:" + clientKey);
+//                            System.out.println("====accept server:" + readyKey);
+                            if (keyConvertMap.get(clientKey) == null) {
+                                Integer indexId = getIndexId();
+                                LOG.info("===>>>>>The out index id is : "+indexId);
+                                if (indexId == null) {
+                                    LOG.warn("The connection has more then the max count(%d)", maxConnectionCount);
+                                    clientKey.channel().close();
+                                    continue;
+                                }
+                                setKeyIndexMap(clientKey, indexId);
 
+                                Integer index = keyConvertMap.get(clientKey);
+                                ByteBuffer b = ByteBuffer.allocate(1024);
+
+                                b.putInt(SocketTool.encodeProtocol((short)0, (short)index.intValue()));
+                                b.flip();
+
+                                SocketChannel serverChannel = (SocketChannel) middleKey.channel();
+                                serverChannel.write(b);
+                                while (b.hasRemaining()) {
+                                    try {
+                                        TimeUnit.MILLISECONDS.sleep(10);
+                                    } catch (InterruptedException e) {
+                                        e.printStackTrace();
+                                    }
+                                    serverChannel.write(b);
+                                }
+                                b.clear();
+                            } else {
+                                LOG.error("why does the new coming connection has already exist");
+                            }
+
+
+
+                        } else if (readyKey.isValid() && readyKey.isConnectable()) {
+//                            System.out.println("==== isConnectable ================");
+                        } else if (readyKey.isValid() && readyKey.isReadable()) {
+                            System.out.println("====isReadable:" + readyKey);
+//                            System.out.println("==== isReadable ================");
                             if (keyConvertMap.get(readyKey) == null) {
                                 Integer indexId = getIndexId();
                                 LOG.info("===>>>>>The out index id is : "+indexId);

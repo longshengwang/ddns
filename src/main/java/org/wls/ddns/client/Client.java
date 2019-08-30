@@ -324,7 +324,7 @@ public class Client implements Runnable {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    LOG.info("=================================== Need repeat send ======");
+                    LOG.debug("=================================== Need repeat send ======");
                     writeChannel.write(middleBuffer);
                 }
                 byteBuffer.clear();
@@ -385,6 +385,7 @@ public class Client implements Runnable {
 
             int indexId = protocolHeader >> Short.SIZE;
             short dataSize = (short) (protocolHeader & Short.MAX_VALUE);
+//            LOG.info("The index id is:" + indexId + "; the datasize:" + dataSize);
             if (indexId < 0) {
 //                LOG.info("[DOWN DATA] [关闭消息]对端通知关闭了 indexId:" + indexId);
                 int realIndexId = -indexId;
@@ -750,11 +751,11 @@ public class Client implements Runnable {
         }
         new Thread(cl).start();
 
-/*
-//        Client cl = new Client("47.98.136.177", 9000, 2323, "127.0.0.1", 80);
+
+/*//        Client cl = new Client("47.98.136.177", 9000, 2323, "127.0.0.1", 80);
 //        Client cl = new Client("192.168.122.45", 9000, 2323, "127.0.0.1", 80);
 //        Client cl = new Client("127.0.0.1", 9000, 7777, "127.0.0.1", 7788);
-        Client cl = new Client("127.0.0.1", 9000, 9001, "127.0.0.1", 5201);
+        Client cl = new Client("127.0.0.1", 9000, 9001, "127.0.0.1", 80);
 //        Client cl = new Client("192.168.122.45", 9000, 9001, "127.0.0.1", 8000);
         cl.setName("wls-ssh");
         cl.setSecretKey("1234567890123456");
