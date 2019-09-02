@@ -151,23 +151,25 @@ public class ProxyServer extends Thread {
     }
 
     private void closeRemoteSocket(Integer index) throws IOException{
-//        try{
-//            System.out.println("[发起关闭消息] index id" + index);
-//            ByteBuffer closedBuffer = ByteBuffer.allocate(SocketTool.PROTOCOL_BUFFER_SIZE);
-//
-//            int closeId = -index;
-//            closedBuffer.putInt(SocketTool.encodeProtocol((short)0, (short)closeId));
-//            closedBuffer.flip();
-//
-//            SocketChannel serverChannel = (SocketChannel) middleKey.channel();
-//            serverChannel.write(closedBuffer);
-//            while (closedBuffer.hasRemaining()) {
-//                serverChannel.write(closedBuffer);
-//            }
-//        } catch (Exception e){
-//            System.out.println("发送关闭的时候发生错误");
-//            throw e;
-//        }
+        //Http and some high level protocol will close remote by self. But some protocol is not.
+        //For Example: VNC protocol. so We need close inner connection by ddns process
+        try{
+            LOG.warn("[Send Close Msg to remote](To inner process) index id" + index);
+            ByteBuffer closedBuffer = ByteBuffer.allocate(SocketTool.PROTOCOL_BUFFER_SIZE);
+
+            int closeId = -index;
+            closedBuffer.putInt(SocketTool.encodeProtocol((short)0, (short)closeId));
+            closedBuffer.flip();
+
+            SocketChannel serverChannel = (SocketChannel) middleKey.channel();
+            serverChannel.write(closedBuffer);
+            while (closedBuffer.hasRemaining()) {
+                serverChannel.write(closedBuffer);
+            }
+        } catch (Exception e){
+            LOG.error("", e);
+            throw e;
+        }
 
 
     }
