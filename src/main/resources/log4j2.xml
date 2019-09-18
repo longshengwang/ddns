@@ -5,15 +5,16 @@
     <!--</Properties>-->
     <Properties>
         <Property name="APP_NAME">tarmac</Property>
-        <Property name="LOG_FILE_PATH">${sys:catalina.home}/logs/${APP_NAME}</Property>
-        <Property name="PATTERN_FORMAT">%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %class{36} %L %M - %msg%xEx%n</Property>
+        <Property name="LOG_FILE_PATH">logs/${APP_NAME}</Property>
+        <!--<Property name="PATTERN_FORMAT">%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %class{1} %L %M - %msg%xEx%n</Property>-->
+        <Property name="PATTERN_FORMAT">%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %class{1} %L - %msg%xEx%n</Property>
     </Properties>
 
 
     <Appenders>
         <RollingFile name="fileLogger" fileName="${LOG_FILE_PATH}/tarmac.log" filePattern="${LOG_FILE_PATH}/tarmac-%d{yyyy-MM-dd}.log">
             <PatternLayout>
-                <pattern>[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n</pattern>
+                <pattern>${PATTERN_FORMAT}</pattern>
             </PatternLayout>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1" modulate="true" />
@@ -28,10 +29,10 @@
     </Appenders>
     <Loggers>
         <Root level="info">
-            <appender-ref ref="console" />
+            <appender-ref ref="fileLogger" />
         </Root>
-        <!--<Logger name="org.nocsys.tarmac" level="debug">-->
-            <!--<appender-ref ref="console" />-->
-        <!--</Logger>-->
+        <Logger name="org.wls.ddns" level="info">
+            <appender-ref ref="console" />
+        </Logger>
     </Loggers>
 </Configuration>
